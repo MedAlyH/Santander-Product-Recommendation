@@ -8,6 +8,7 @@ def read_data(filename):
                      skipinitialspace=True)
     return df
 
+
 def clean_indrel_lmes(arr):
     arr = arr.fillna(-1)
     for i, item in enumerate(arr):
@@ -16,6 +17,7 @@ def clean_indrel_lmes(arr):
     arr = pd.to_numeric(arr)
     arr = arr.astype(int)
     return arr
+
 
 def clean_data(filename):
     df = read_data(filename)
@@ -62,6 +64,7 @@ def clean_data(filename):
     df['age'] = df['age'].astype(int)
 
     df['antiguedad'] = df['antiguedad'].fillna(-1)
+    df['antiguedad'] = df['antiguedad'].astype(int)
 
     df['ind_nuevo'] = df['ind_nuevo'].fillna(-1)
     df['ind_nuevo'] = df['ind_nuevo'].astype(int)
@@ -73,7 +76,7 @@ def clean_data(filename):
     df['tiprel_1mes'] = df['tiprel_1mes'].apply(lambda x:
                                                 mapping_triprel.get(x, -1))
 
-    mapping_SN = {'S': 1, 'N':2}
+    mapping_SN = {'S': 1, 'N': 2}
     df['indresi'] = df['indresi'].apply(lambda x: mapping_SN.get(x, -1))
 
     df['indext'] = df['indext'].apply(lambda x: mapping_SN.get(x, -1))
@@ -120,7 +123,8 @@ def clean_data(filename):
                              'KFI': 134, '007': 71, '004': 83, 'KGU': 149,
                              'KGW': 147, 'KGV': 43, 'KGY': 44, 'KGX': 24,
                              'KGC': 18, 'KGN': 11}
-    df['canal_entrada'] = df['canal_entrada'].apply(lambda x: mapping_canal_entrada.get(x, -1))
+    df['canal_entrada'] = (df['canal_entrada']
+                           .apply(lambda x: mapping_canal_entrada.get(x, -1)))
 
     df['indfall'] = df['indfall'].apply(lambda x: mapping_SN.get(x, -1))
 
@@ -141,8 +145,16 @@ def clean_data(filename):
                         '02 - PARTICULARES': 2,
                         '03 - UNIVERSITARIO': 3
                         }
-    df['segmento'] = df['segmento'].apply(lambda x: mapping_segmento.get(x, -1))
+    df['segmento'] = (df['segmento']
+                      .apply(lambda x: mapping_segmento.get(x, -1)))
 
+    df['ult_fec_cli_1t'] = df['ult_fec_cli_1t'].isnull().astype(int)
+
+    df['fecha_dato'] = pd.to_datetime(df['fecha_dato'])
+    df['fecha_alta'] = pd.to_datetime(df['fecha_alta'])
+    df['fecha_alta'] = (df['fecha_dato'] - df['fecha_alta']).dt.days
+    df['fecha_alta'] = df['fecha_alta'].fillna(-1)
+    df['fecha_alta'] = df['fecha_alta'].astype(int)
     return df
 
 
