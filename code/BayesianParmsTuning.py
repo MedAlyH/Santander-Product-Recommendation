@@ -1,7 +1,7 @@
-import numpy as np
-from datetime import datetime
-import csv
 import xgboost as xgb
+import numpy as np
+import csv
+from bayes_opt import BayesianOptimization
 
 features = ['ind_empleado', 'pais_residencia', 'sexo', 'age', 'fecha_alta',
             'ind_nuevo', 'antiguedad', 'indrel', 'ult_fec_cli_1t',
@@ -101,37 +101,26 @@ def getColVal(row, col):
 
 def creatTrainData(filename,
                    lag=-5,
-                   traindate=(2015, 6, 28),
-                   testdate=(2016, 6, 28)
+                   traindate=(2015, 6, 28)
                    ):
     lagdate = strDate(getDate(traindate, lag))
     prevdate = strDate(getDate(traindate, -1))
     traindate = strDate(traindate)
-    testprevdate = strDate(getDate(testdate, -1))
-    testlagdate = strDate(getDate(testdate, lag))
-    testdate = strDate(testdate)
     with open(filename, 'r') as trainfile:
         X = []
         y = []
         prev_dict = {}
         lag_dict = {}
-        test_prev = {}
-        test_lag = {}
         for row in csv.DictReader(trainfile):
             dt = row['fecha_dato']
             cust_id = row['ncodpers']
-            if dt not in [traindate, lagdate, prevdate,
-                          testprevdate, testlagdate, testdate]:
+            if dt not in [traindate, lagdate, prevdate]:
                 continue
             target = [getColVal(row, col) for col in target_cols]
             if dt == lagdate:
                 lag_dict[cust_id] = target
             elif dt == prevdate:
                 prev_dict[cust_id] = target
-            elif dt == testprevdate:
-                test_prev[cust_id] = target
-            elif dt == testlagdate:
-                test_lag[cust_id] = target
             elif dt == traindate:
                 prev = prev_dict.get(cust_id, [0]*22)
                 new_products = [max(x1-x2, 0) for (x1, x2)
@@ -143,46 +132,31 @@ def creatTrainData(filename,
                             x_vars = [getColVal(row, col) for col in features]
                             X.append(x_vars+prev+lag)
                             y.append(ind)
-    return np.array(X), np.array(y), test_prev, test_lag
+    return np.array(X), np.array(y)
 
 
-def creatTestData(filename, prev_dict, lag_dict):
-    with open(filename, 'r') as trainfile:
-        X = []
-        ids = []
-        for row in csv.DictReader(trainfile):
-            cust_id = row['ncodpers']
-            prev = prev_dict.get(cust_id, [0]*22)
-            lag = lag_dict.get(cust_id, [0]*22)
-            x_vars = [getColVal(row, col) for col in features]
-            X.append(x_vars+prev+lag)
-            ids.append(cust_id)
-    return np.array(X), ids
-
-
-def runXGB(train_X, train_y, params, num_rounds):
-    xgtrain = xgb.DMatrix(train_X, label=train_y)
-    model = xgb.train(params, xgtrain, num_rounds)
-    return model
-
-
-def predictProduct(model, X_test):
-    Xtest = xgb.DMatrix(X_test)
-    y_pred = model.predict(Xtest)
-    y_pred = np.argsort(y_pred, axis=1)
-    y_pred = np.fliplr(y_pred)[:, :8]
-    return y_pred
-
-
-def makeSubmition(filename, y_pred):
-    with open(filename, 'w+') as f:
-        f.write('added_products,ncodpers\n')
-        for pred, idx in zip(y_pred, test_ids):
-            line = " ".join(list(np.array(target_cols)[pred]))
-            f.write(line)
-            f.write(',')
-            f.write(str(idx))
-            f.write('\n')
+def xgb_evaluate(min_child_weight,
+                 colsample_bytree,
+                 max_depth,
+                 subsample,
+                 gamma):
+    num_rounds = 3000
+    random_state = 2016
+    params = {'min_child_weight': int(min_child_weight),
+              'cosample_bytree': max(min(colsample_bytree, 1), 0),
+              'max_depth': int(max_depth),
+              'subsample': max(min(subsample, 1), 0),
+              'gamma': max(gamma, 0),
+              'eta': 0.1,
+              'silent': 1,
+              'num_class': 22,
+              'eval_metric': 'mlogloss',
+              'verbose_eval': True,
+              'seed': random_state
+              }
+    cv_result = xgb.cv(params, Xtrain, num_boost_round=num_rounds, nfold=5,
+                       seed=random_state, early_stopping_rounds=25)
+    return -cv_result['test-mlogloss-mean'].values[-1]
 
 
 if __name__ == '__main__':
@@ -193,44 +167,16 @@ if __name__ == '__main__':
     target_cols = target_cols[2:]
     print 'Reading train file'
     print '-'*30
-    X, y, test_prev, test_lag = creatTrainData(inputpath+trainfile)
-    params = {'objective': 'multi:softprob',
-              'eta': 0.051,
-              'max_depth': 6,
-              'silent': 1,
-              'num_class': 24,
-              'eval_metric': "mlogloss",
-              'min_child_weight': 2.05,
-              'subsample': 0.92,
-              'gamma': 0.65,
-              'colsample_bytree': 0.9,
-              'seed': 125
-              }
-    num_rounds = 115
-    # params = {'objective': 'multi:softprob',
-    #           'eta': 0.05,
-    #           'max_depth': 4,
-    #           'silent': 1,
-    #           'num_class': 22,
-    #           'eval_metric': "mlogloss",
-    #           'min_child_weight': 2,
-    #           'subsample': 0.9,
-    #           'colsample_bytree': 0.9,
-    #           'seed': 125,
-    #           }
-    # num_rounds = 190
-    print 'Training'
+    X, y = creatTrainData(inputpath+trainfile)
+    Xtrain = xgb.DMatrix(X, label=y)
+    num_iter = 25
+    init_points = 5
+    print 'Optimizing...'
     print '-'*30
-    model = runXGB(X, y, params, num_rounds)
-    print 'Reading test file'
-    print '-'*30
-    X_test, test_ids = creatTestData(inputpath+testfile, test_prev, test_lag)
-    print 'Predicting'
-    print '-'*30
-    y_pred = predictProduct(model, X_test)
-    outputpath = '../data/output/'
-    output = 'sub_xgb_{}.csv'.format(datetime.now().strftime("%Y-%m-%d-%H-%M"))
-    print 'Writing results'
-    print '-'*30
-    makeSubmition(outputpath+output, y_pred)
-    print 'Done!'
+    xgbBO = BayesianOptimization(xgb_evaluate, {'min_child_weight': (1, 20),
+                                                'colsample_bytree': (0.5, 1),
+                                                'max_depth': (5, 15),
+                                                'subsample': (0.5, 1),
+                                                'gamma': (0, 10)
+                                                })
+    xgbBO.maximize(init_points=init_points, n_iter=num_iter)
