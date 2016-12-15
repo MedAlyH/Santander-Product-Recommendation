@@ -2,6 +2,7 @@ import xgboost as xgb
 import numpy as np
 import csv
 from bayes_opt import BayesianOptimization
+from datetime import datetime
 
 features = ['ind_empleado', 'pais_residencia', 'sexo', 'age', 'fecha_alta',
             'ind_nuevo', 'antiguedad', 'indrel', 'ult_fec_cli_1t',
@@ -140,14 +141,14 @@ def xgb_evaluate(min_child_weight,
                  max_depth,
                  subsample,
                  gamma):
-    num_rounds = 3000
-    random_state = 2016
+    num_rounds = 200
+    random_state = 123
     params = {'min_child_weight': int(min_child_weight),
               'cosample_bytree': max(min(colsample_bytree, 1), 0),
               'max_depth': int(max_depth),
               'subsample': max(min(subsample, 1), 0),
               'gamma': max(gamma, 0),
-              'eta': 0.1,
+              'eta': 0.05,
               'silent': 1,
               'num_class': 22,
               'eval_metric': 'mlogloss',
@@ -169,8 +170,8 @@ if __name__ == '__main__':
     print '-'*30
     X, y = creatTrainData(inputpath+trainfile)
     Xtrain = xgb.DMatrix(X, label=y)
-    num_iter = 25
-    init_points = 5
+    num_iter = 100
+    init_points = 10
     print 'Optimizing...'
     print '-'*30
     xgbBO = BayesianOptimization(xgb_evaluate, {'min_child_weight': (1, 20),
@@ -180,3 +181,6 @@ if __name__ == '__main__':
                                                 'gamma': (0, 10)
                                                 })
     xgbBO.maximize(init_points=init_points, n_iter=num_iter)
+    logfile = 'log_{}.csv'.format(datetime.now().strftime("%Y-%m-%d-%H-%M"))
+    logpath = '../log/'
+    xgbBO.points_to_csv(logpath+logfile)
