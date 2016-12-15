@@ -194,19 +194,19 @@ if __name__ == '__main__':
     print 'Reading train file'
     print '-'*30
     X, y, test_prev, test_lag = creatTrainData(inputpath+trainfile)
-    params = {'objective': 'multi:softprob',
-              'eta': 0.051,
-              'max_depth': 6,
-              'silent': 1,
-              'num_class': 24,
-              'eval_metric': "mlogloss",
-              'min_child_weight': 2.05,
-              'subsample': 0.92,
-              'gamma': 0.65,
-              'colsample_bytree': 0.9,
-              'seed': 125
-              }
-    num_rounds = 115
+    # params = {'objective': 'multi:softprob',
+    #           'eta': 0.051,
+    #           'max_depth': 6,
+    #           'silent': 1,
+    #           'num_class': 24,
+    #           'eval_metric': "mlogloss",
+    #           'min_child_weight': 2.05,
+    #           'subsample': 0.92,
+    #           'gamma': 0.65,
+    #           'colsample_bytree': 0.9,
+    #           'seed': 125
+    #           }
+    # num_rounds = 115
     # params = {'objective': 'multi:softprob',
     #           'eta': 0.05,
     #           'max_depth': 4,
@@ -219,6 +219,18 @@ if __name__ == '__main__':
     #           'seed': 125,
     #           }
     # num_rounds = 190
+    params = {'objective': 'multi:softprob',
+              'num_class': 22,
+              'colsample_bytree': 0.9181423087392605,
+              'gamma': 1.3122701510124506,
+              'max_depth': 5,
+              'min_child_weight': 4,
+              'subsample': 0.93981772820158194,
+              'seed': 123,
+              'eta': 0.05,
+              'silent': 1
+              }
+    num_rounds = 200
     print 'Training'
     print '-'*30
     model = runXGB(X, y, params, num_rounds)
