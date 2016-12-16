@@ -215,7 +215,7 @@ if __name__ == '__main__':
     print 'Reading train file'
     print '-'*30
     X, y, test_prev, test_lag = creatTrainData(inputpath+trainfile)
-    print X.shape, y.shape
+    # print X.shape, y.shape
     # params = {'objective': 'multi:softprob',
     #           'eta': 0.051,
     #           'max_depth': 6,

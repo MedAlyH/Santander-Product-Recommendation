@@ -177,15 +177,16 @@ def write_log(xgbBO):
     logfile = 'log_{}.csv'.format(datetime.now().strftime("%Y-%m-%d-%H-%M"))
     logpath = '../log/'
     xgbBO.points_to_csv(logpath+logfile)
+    res = xgbBO.res['max']
     with open('../log/log_max.txt', 'a+') as f:
         f.write('\n')
         f.write('*'*30 + '\n')
         f.write(datetime.now().strftime("%Y-%m-%d-%H-%M"))
         f.write('\n'+'-'*30+'\n')
         f.write('max_params:\n')
-        for key in xgbBO.res['max_params']:
-            f.write('\t{}: {}\n'.format(key, xgbBO.res['max_params'][key]))
-        f.write('max_val: %f\n' % xgbBO.res['max_val'])
+        for key in res['max_params']:
+            f.write('\t{}: {}\n'.format(key, res['max_params'][key]))
+        f.write('max_val: %f\n' % res['max_val'])
         f.write('-'*30 + '\n')
 
 
