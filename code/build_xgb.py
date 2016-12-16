@@ -100,16 +100,20 @@ def getColVal(row, col):
 
 
 def creatTrainData(filename,
-                   lag=-5,
+                   lag=5,
                    traindate=(2015, 6, 28),
                    testdate=(2016, 6, 28)
                    ):
-    lagdate = strDate(getDate(traindate, lag))
+    lagdates, testlagdates = [], []
+    for day in range(2, lag+1):
+        lagdates.append(strDate(getDate(traindate, -day)))
+        testlagdates.append(strDate(getDate(testdate, -day)))
     prevdate = strDate(getDate(traindate, -1))
-    traindate = strDate(traindate)
     testprevdate = strDate(getDate(testdate, -1))
-    testlagdate = strDate(getDate(testdate, lag))
+    traindate = strDate(traindate)
     testdate = strDate(testdate)
+    dates = lagdates + testlagdates + [prevdate, testprevdate,
+                                       traindate, testdate]
     with open(filename, 'r') as trainfile:
         X = []
         y = []
@@ -120,49 +124,65 @@ def creatTrainData(filename,
         for row in csv.DictReader(trainfile):
             dt = row['fecha_dato']
             cust_id = row['ncodpers']
-            if dt not in [traindate, lagdate, prevdate,
-                          testprevdate, testlagdate, testdate]:
+            if dt not in dates:
                 continue
             target = [getColVal(row, col) for col in target_cols]
-            if dt == lagdate:
-                lag_dict[cust_id] = target
+            if dt in lagdates:
+                if dt not in lag_dict:
+                    lag_dict[dt] = {}
+                lag_dict[dt][cust_id] = target
             elif dt == prevdate:
                 prev_dict[cust_id] = target
             elif dt == testprevdate:
                 test_prev[cust_id] = target
-            elif dt == testlagdate:
-                test_lag[cust_id] = target
+            elif dt in testlagdates:
+                if dt not in test_lag:
+                    test_lag[dt] = {}
+                test_lag[dt][cust_id] = target
             elif dt == traindate:
-                prev = prev_dict.get(cust_id, [0]*22)
+                prev = prev_dict.get(cust_id, [0]*N)
                 new_products = [max(x1-x2, 0) for (x1, x2)
                                 in zip(target, prev)]
                 if sum(new_products) > 0:
                     for ind, prod in enumerate(new_products):
                         if prod > 0:
-                            lag = lag_dict.get(cust_id, [0]*22)
                             x_vars = [getColVal(row, col) for col in features]
-                            X.append(x_vars+prev+lag)
+                            x_vars += prev
+                            for dt in lagdates:
+                                tar_lag = lag_dict[dt].get(cust_id, [0]*N)
+                                x_vars += tar_lag
+                            X.append(x_vars)
                             y.append(ind)
     return np.array(X), np.array(y), test_prev, test_lag
 
 
-def creatTestData(filename, prev_dict, lag_dict):
+def creatTestData(filename, prev_dict, lag_dict,
+                  testdate=(2016, 6, 28), lag=5):
+    lagdates = []
+    for day in range(2, lag+1):
+        lagdates.append(strDate(getDate(testdate, -day)))
     with open(filename, 'r') as trainfile:
         X = []
         ids = []
         for row in csv.DictReader(trainfile):
             cust_id = row['ncodpers']
-            prev = prev_dict.get(cust_id, [0]*22)
-            lag = lag_dict.get(cust_id, [0]*22)
             x_vars = [getColVal(row, col) for col in features]
-            X.append(x_vars+prev+lag)
+            prev = prev_dict.get(cust_id, [0]*N)
+            x_vars += prev
+            for dt in lagdates:
+                tar_lag = lag_dict[dt].get(cust_id, [0]*N)
+                x_vars += tar_lag
+            X.append(x_vars)
             ids.append(cust_id)
     return np.array(X), ids
 
 
 def runXGB(train_X, train_y, params, num_rounds):
     xgtrain = xgb.DMatrix(train_X, label=train_y)
-    model = xgb.train(params, xgtrain, num_rounds)
+    model = xgb.train(params, xgtrain, num_rounds,
+                      evals=[(xgtrain, 'train'), ],
+                      early_stopping_rounds=25
+                      )
     return model
 
 
@@ -190,10 +210,12 @@ if __name__ == '__main__':
     trainfile = 'train.csv'
     testfile = 'test.csv'
     print '*'*30
-    target_cols = target_cols[2:]
+    # target_cols = target_cols[2:]
+    N = len(target_cols)
     print 'Reading train file'
     print '-'*30
     X, y, test_prev, test_lag = creatTrainData(inputpath+trainfile)
+    print X.shape, y.shape
     # params = {'objective': 'multi:softprob',
     #           'eta': 0.051,
     #           'max_depth': 6,
@@ -220,7 +242,7 @@ if __name__ == '__main__':
     #           }
     # num_rounds = 190
     params = {'objective': 'multi:softprob',
-              'num_class': 22,
+              'num_class': N,
               'colsample_bytree': 0.9181423087392605,
               'gamma': 1.3122701510124506,
               'max_depth': 5,
@@ -228,7 +250,8 @@ if __name__ == '__main__':
               'subsample': 0.93981772820158194,
               'seed': 123,
               'eta': 0.05,
-              'silent': 1
+              'silent': 1,
+              'eval_metric': "mlogloss",
               }
     num_rounds = 200
     print 'Training'
@@ -241,7 +264,9 @@ if __name__ == '__main__':
     print '-'*30
     y_pred = predictProduct(model, X_test)
     outputpath = '../data/output/'
-    output = 'sub_xgb_{}.csv'.format(datetime.now().strftime("%Y-%m-%d-%H-%M"))
+    output = ('sub_xgb_5all_{}.csv'
+              .format(datetime.now().strftime("%Y-%m-%d-%H-%M"))
+              )
     print 'Writing results'
     print '-'*30
     makeSubmition(outputpath+output, y_pred)

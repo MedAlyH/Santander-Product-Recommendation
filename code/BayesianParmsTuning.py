@@ -101,12 +101,17 @@ def getColVal(row, col):
 
 
 def creatTrainData(filename,
-                   lag=-5,
-                   traindate=(2015, 6, 28)
+                   lag=5,
+                   traindate=(2015, 6, 28),
+                   testdate=(2016, 6, 28)
                    ):
-    lagdate = strDate(getDate(traindate, lag))
+    lagdates = []
+    for day in range(2, lag+1):
+        lagdates.append(strDate(getDate(traindate, -day)))
     prevdate = strDate(getDate(traindate, -1))
     traindate = strDate(traindate)
+    testdate = strDate(testdate)
+    dates = lagdates + [prevdate, traindate]
     with open(filename, 'r') as trainfile:
         X = []
         y = []
@@ -115,23 +120,28 @@ def creatTrainData(filename,
         for row in csv.DictReader(trainfile):
             dt = row['fecha_dato']
             cust_id = row['ncodpers']
-            if dt not in [traindate, lagdate, prevdate]:
+            if dt not in dates:
                 continue
             target = [getColVal(row, col) for col in target_cols]
-            if dt == lagdate:
-                lag_dict[cust_id] = target
+            if dt in lagdates:
+                if dt not in lag_dict:
+                    lag_dict[dt] = {}
+                lag_dict[dt][cust_id] = target
             elif dt == prevdate:
                 prev_dict[cust_id] = target
             elif dt == traindate:
-                prev = prev_dict.get(cust_id, [0]*22)
+                prev = prev_dict.get(cust_id, [0]*N)
                 new_products = [max(x1-x2, 0) for (x1, x2)
                                 in zip(target, prev)]
                 if sum(new_products) > 0:
                     for ind, prod in enumerate(new_products):
                         if prod > 0:
-                            lag = lag_dict.get(cust_id, [0]*22)
                             x_vars = [getColVal(row, col) for col in features]
-                            X.append(x_vars+prev+lag)
+                            x_vars += prev
+                            for dt in lagdates:
+                                tar_lag = lag_dict[dt].get(cust_id, [0]*N)
+                                x_vars += tar_lag
+                            X.append(x_vars)
                             y.append(ind)
     return np.array(X), np.array(y)
 
@@ -140,8 +150,9 @@ def xgb_evaluate(min_child_weight,
                  colsample_bytree,
                  max_depth,
                  subsample,
-                 gamma):
-    num_rounds = 200
+                 gamma,
+                 eta,
+                 num_rounds):
     random_state = 123
     params = {'min_child_weight': int(min_child_weight),
               'cosample_bytree': max(min(colsample_bytree, 1), 0),
@@ -150,14 +161,32 @@ def xgb_evaluate(min_child_weight,
               'gamma': max(gamma, 0),
               'eta': 0.05,
               'silent': 1,
-              'num_class': 22,
+              'num_class': N,
               'eval_metric': 'mlogloss',
               'verbose_eval': True,
               'seed': random_state
               }
-    cv_result = xgb.cv(params, Xtrain, num_boost_round=num_rounds, nfold=5,
-                       seed=random_state, early_stopping_rounds=25)
+    cv_result = xgb.cv(params, Xtrain, num_boost_round=int(num_rounds),
+                       nfold=5, seed=random_state,
+                       early_stopping_rounds=25
+                       )
     return -cv_result['test-mlogloss-mean'].values[-1]
+
+
+def write_log(xgbBO):
+    logfile = 'log_{}.csv'.format(datetime.now().strftime("%Y-%m-%d-%H-%M"))
+    logpath = '../log/'
+    xgbBO.points_to_csv(logpath+logfile)
+    with open('../log/log_max.txt', 'a+') as f:
+        f.write('\n')
+        f.write('*'*30 + '\n')
+        f.write(datetime.now().strftime("%Y-%m-%d-%H-%M"))
+        f.write('\n'+'-'*30+'\n')
+        f.write('max_params:\n')
+        for key in xgbBO.res['max_params']:
+            f.write('\t{}: {}\n'.format(key, xgbBO.res['max_params'][key]))
+        f.write('max_val: %f\n' % xgbBO.res['max_val'])
+        f.write('-'*30 + '\n')
 
 
 if __name__ == '__main__':
@@ -166,21 +195,28 @@ if __name__ == '__main__':
     testfile = 'test.csv'
     print '*'*30
     target_cols = target_cols[2:]
+    N = len(target_cols)
     print 'Reading train file'
     print '-'*30
     X, y = creatTrainData(inputpath+trainfile)
     Xtrain = xgb.DMatrix(X, label=y)
-    num_iter = 100
-    init_points = 10
+    num_iter = 50
+    init_points = 5
     print 'Optimizing...'
     print '-'*30
-    xgbBO = BayesianOptimization(xgb_evaluate, {'min_child_weight': (1, 20),
+    # xgbBO = BayesianOptimization(xgb_evaluate, {'min_child_weight': (1, 20),
+    #                                             'colsample_bytree': (0.5, 1),
+    #                                             'max_depth': (5, 15),
+    #                                             'subsample': (0.5, 1),
+    #                                             'gamma': (0, 10)
+    #                                             })
+    xgbBO = BayesianOptimization(xgb_evaluate, {'min_child_weight': (1, 10),
                                                 'colsample_bytree': (0.5, 1),
-                                                'max_depth': (5, 15),
+                                                'max_depth': (3, 10),
                                                 'subsample': (0.5, 1),
-                                                'gamma': (0, 10)
+                                                'gamma': (0, 5),
+                                                'eta': (0, 0.5),
+                                                'num_rounds': (100, 500)
                                                 })
     xgbBO.maximize(init_points=init_points, n_iter=num_iter)
-    logfile = 'log_{}.csv'.format(datetime.now().strftime("%Y-%m-%d-%H-%M"))
-    logpath = '../log/'
-    xgbBO.points_to_csv(logpath+logfile)
+    write_log(xgbBO)
