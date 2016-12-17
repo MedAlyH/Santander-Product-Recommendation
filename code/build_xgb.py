@@ -2,6 +2,7 @@ import numpy as np
 from datetime import datetime
 import csv
 import xgboost as xgb
+from sklearn.model_selection import KFold
 
 features = ['ind_empleado', 'pais_residencia', 'sexo', 'age', 'fecha_alta',
             'ind_nuevo', 'antiguedad', 'indrel', 'ult_fec_cli_1t',
@@ -177,24 +178,27 @@ def creatTestData(filename, prev_dict, lag_dict,
     return np.array(X), ids
 
 
-def runXGB(train_X, train_y, params, num_rounds):
-    xgtrain = xgb.DMatrix(train_X, label=train_y)
-    model = xgb.train(params, xgtrain, num_rounds,
-                      evals=[(xgtrain, 'train'), ],
-                      early_stopping_rounds=25
-                      )
+def runXGB(X_train, y_train, params, num_rounds):
+    print 'Training'
+    print '-'*30
+    xgtrain = xgb.DMatrix(X_train, label=y_train)
+    model = xgb.train(params, xgtrain, num_rounds)
     return model
 
 
 def predictProduct(model, X_test):
+    print 'Predicting'
+    print '-'*30
     Xtest = xgb.DMatrix(X_test)
     y_pred = model.predict(Xtest)
-    y_pred = np.argsort(y_pred, axis=1)
-    y_pred = np.fliplr(y_pred)[:, :8]
     return y_pred
 
 
 def makeSubmition(filename, y_pred):
+    print 'Writing results'
+    print '-'*30
+    y_pred = np.argsort(y_pred, axis=1)
+    y_pred = np.fliplr(y_pred)[:, :8]
     with open(filename, 'w+') as f:
         f.write('added_products,ncodpers\n')
         for pred, idx in zip(y_pred, test_ids):
@@ -205,69 +209,70 @@ def makeSubmition(filename, y_pred):
             f.write('\n')
 
 
-if __name__ == '__main__':
-    inputpath = '../data/input/'
-    trainfile = 'train.csv'
-    testfile = 'test.csv'
-    print '*'*30
-    # target_cols = target_cols[2:]
-    N = len(target_cols)
-    print 'Reading train file'
-    print '-'*30
-    X, y, test_prev, test_lag = creatTrainData(inputpath+trainfile)
-    # print X.shape, y.shape
-    # params = {'objective': 'multi:softprob',
-    #           'eta': 0.051,
-    #           'max_depth': 6,
-    #           'silent': 1,
-    #           'num_class': 24,
-    #           'eval_metric': "mlogloss",
-    #           'min_child_weight': 2.05,
-    #           'subsample': 0.92,
-    #           'gamma': 0.65,
-    #           'colsample_bytree': 0.9,
-    #           'seed': 125
-    #           }
-    # num_rounds = 115
-    # params = {'objective': 'multi:softprob',
-    #           'eta': 0.05,
-    #           'max_depth': 4,
-    #           'silent': 1,
-    #           'num_class': 22,
-    #           'eval_metric': "mlogloss",
-    #           'min_child_weight': 2,
-    #           'subsample': 0.9,
-    #           'colsample_bytree': 0.9,
-    #           'seed': 125,
-    #           }
-    # num_rounds = 190
-    params = {'objective': 'multi:softprob',
-              'num_class': N,
-              'colsample_bytree': 0.9181423087392605,
-              'gamma': 1.3122701510124506,
-              'max_depth': 5,
-              'min_child_weight': 4,
-              'subsample': 0.93981772820158194,
-              'seed': 123,
-              'eta': 0.05,
-              'silent': 1,
-              'eval_metric': "mlogloss",
-              }
-    num_rounds = 200
-    print 'Training'
-    print '-'*30
-    model = runXGB(X, y, params, num_rounds)
-    print 'Reading test file'
-    print '-'*30
-    X_test, test_ids = creatTestData(inputpath+testfile, test_prev, test_lag)
-    print 'Predicting'
-    print '-'*30
+def one_run(X_train, y_train, X_test, params, num_rounds):
+    model = runXGB(X_train, y_train, params, num_rounds)
     y_pred = predictProduct(model, X_test)
     outputpath = '../data/output/'
     output = ('sub_xgb_5all_{}.csv'
               .format(datetime.now().strftime("%Y-%m-%d-%H-%M"))
               )
-    print 'Writing results'
+    filename = outputpath + output
+    makeSubmition(filename, y_pred)
+    return model, y_pred
+
+
+def cv_run(X_train, y_train, X_test, nfolds, params, num_rounds):
+    kf = KFold(n_splits=nfolds, shuffle=True, random_state=123)
+    num = X_test.shape[0]
+    y_preds = np.zeros((num, N))
+    models = []
+    for i, index, _ in enumerate(kf.split(X)):
+        print '{} / {} folds:'
+        print '-'*30
+        model = runXGB(X_train[index], y_train[index],
+                       params, num_rounds)
+        y_pred = predictProduct(model, X_test)
+        y_preds += y_pred
+        models.append(model)
+    y_preds /= nfolds
+    outputpath = '../data/output/'
+    output = ('sub_xgb_{}fold_5all_{}.csv'
+              .format(nfolds,
+                      datetime.now().strftime("%Y-%m-%d-%H-%M")
+                      )
+              )
+    filename = outputpath + output
+    makeSubmition(filename, y_preds)
+    return models, y_preds
+
+
+if __name__ == '__main__':
+    inputpath = '../data/input/'
+    trainfile = 'train.csv'
+    testfile = 'test.csv'
+    print '*'*30
+    target_cols = target_cols[2:]
+    N = len(target_cols)
+    print 'Reading train file'
     print '-'*30
-    makeSubmition(outputpath+output, y_pred)
+    X, y, test_prev, test_lag = creatTrainData(inputpath+trainfile)
+    print 'Reading test file'
+    print '-'*30
+    X_test, test_ids = creatTestData(inputpath+testfile, test_prev, test_lag)
+    params = {'objective': 'multi:softprob',
+              'num_class': N,
+              'colsample_bytree': 0.810195135669,
+              'gamma': 1.6446531418,
+              'max_depth': 4,
+              'min_child_weight': 2,
+              'subsample': 1.0,
+              'seed': 123,
+              'eta': 0.205950347095,
+              'silent': 1,
+              'eval_metric': "mlogloss",
+              }
+    num_rounds = 373
+    # model, y_pred = one_run(X, y, X_test, params, num_rounds)
+    nfolds = 5
+    models, y_preds = cv_run(X, y, X_test, nfolds, params, num_rounds)
     print 'Done!'
