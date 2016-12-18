@@ -195,13 +195,13 @@ if __name__ == '__main__':
     trainfile = 'train.csv'
     testfile = 'test.csv'
     print '*'*30
-    target_cols = target_cols[2:]
+    # target_cols = target_cols[2:]
     N = len(target_cols)
     print 'Reading train file'
     print '-'*30
     X, y = creatTrainData(inputpath+trainfile)
     Xtrain = xgb.DMatrix(X, label=y)
-    num_iter = 50
+    num_iter = 60
     init_points = 5
     print 'Optimizing...'
     print '-'*30

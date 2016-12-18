@@ -222,15 +222,15 @@ def one_run(X_train, y_train, X_test, params, num_rounds):
 
 
 def cv_run(X_train, y_train, X_test, nfolds, params, num_rounds):
-    kf = KFold(n_splits=nfolds, shuffle=True, random_state=123)
+    kf = KFold(n_splits=nfolds)
     num = X_test.shape[0]
     y_preds = np.zeros((num, N))
     models = []
-    for i, index, _ in enumerate(kf.split(X)):
-        print '{} / {} folds:'
+    for i, index in enumerate(kf.split(X_train)):
+        print '{} / {} folds:'.format(i+1, nfolds)
         print '-'*30
-        model = runXGB(X_train[index], y_train[index],
-                       params, num_rounds)
+        idx = index[0]
+        model = runXGB(X_train[idx], y_train[idx], params, num_rounds)
         y_pred = predictProduct(model, X_test)
         y_preds += y_pred
         models.append(model)
