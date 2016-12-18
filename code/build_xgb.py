@@ -72,22 +72,6 @@ def getCustSeniority(row):
     return round((cust_seniority-min_value) / range_value, 4)
 
 
-# def getRent(row):
-#     min_value = 0.
-#     max_value = 1500000.
-#     range_value = max_value - min_value
-#     missing_value = 101850.
-#     rent = float(row['renta'])
-#     if rent == -1:
-#         rent = missing_value
-#     else:
-#         rent = float(rent)
-#         if rent < min_value:
-#             rent = min_value
-#         elif rent > max_value:
-#             rent = max_value
-#     return round((rent-min_value) / range_value, 6)
-
 def getRent(row):
     min_value = 0.
     max_value = 1500000.
