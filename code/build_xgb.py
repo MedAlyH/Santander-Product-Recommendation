@@ -121,22 +121,21 @@ def creatTrainData(filename,
                    traindate=(2015, 6, 28),
                    testdate=(2016, 6, 28)
                    ):
+    print 'Reading train file'
+    print '-'*30
     lagdates, testlagdates = [], []
-    for day in range(2, lag+1):
+    for day in range(1, lag+1):
         lagdates.append(strDate(getDate(traindate, -day)))
         testlagdates.append(strDate(getDate(testdate, -day)))
     prevdate = strDate(getDate(traindate, -1))
-    testprevdate = strDate(getDate(testdate, -1))
     traindate = strDate(traindate)
     testdate = strDate(testdate)
-    dates = lagdates + testlagdates + [prevdate, testprevdate,
-                                       traindate, testdate]
+    dates = lagdates + testlagdates + [traindate, testdate]
     with open(filename, 'r') as trainfile:
         X = []
         y = []
         prev_dict = {}
         lag_dict = {}
-        test_prev = {}
         test_lag = {}
         for row in csv.DictReader(trainfile):
             dt = row['fecha_dato']
@@ -144,19 +143,18 @@ def creatTrainData(filename,
             if dt not in dates:
                 continue
             target = [getColVal(row, col) for col in target_cols]
+            x_vars = [getColVal(row, col) for col in features]
             if dt in lagdates:
                 if dt not in lag_dict:
                     lag_dict[dt] = {}
-                lag_dict[dt][cust_id] = target
-            elif dt == prevdate:
-                prev_dict[cust_id] = target
-            elif dt == testprevdate:
-                test_prev[cust_id] = target
-            elif dt in testlagdates:
+                lag_dict[dt][cust_id] = target + x_vars
+                if dt == prevdate:
+                    prev_dict[cust_id] = target
+            if dt in testlagdates:
                 if dt not in test_lag:
                     test_lag[dt] = {}
-                test_lag[dt][cust_id] = target
-            elif dt == traindate:
+                test_lag[dt][cust_id] = target + x_vars
+            if dt == traindate:
                 prev = prev_dict.get(cust_id, [0]*N)
                 new_products = [max(x1-x2, 0) for (x1, x2)
                                 in zip(target, prev)]
@@ -164,34 +162,56 @@ def creatTrainData(filename,
                     for ind, prod in enumerate(new_products):
                         if prod > 0:
                             x_vars = [getColVal(row, col) for col in features]
-                            x_vars += prev
                             for dt in lagdates:
-                                tar_lag = lag_dict[dt].get(cust_id, [0]*N)
+                                tar_lag = (lag_dict[dt]
+                                           .get(cust_id, [0]*N + [-1]*M))
                                 x_vars += tar_lag
                             X.append(x_vars)
                             y.append(ind)
-    return np.array(X), np.array(y), test_prev, test_lag
+    return np.array(X), np.array(y), test_lag
 
 
-def creatTestData(filename, prev_dict, lag_dict,
+def creatTestData(filename, lag_dict,
                   testdate=(2016, 6, 28), lag=5):
+    print 'Reading test file'
+    print '-'*30
     lagdates = []
-    for day in range(2, lag+1):
+    for day in range(1, lag+1):
         lagdates.append(strDate(getDate(testdate, -day)))
-    with open(filename, 'r') as trainfile:
+    with open(filename, 'r') as testfile:
         X = []
         ids = []
-        for row in csv.DictReader(trainfile):
+        for row in csv.DictReader(testfile):
             cust_id = row['ncodpers']
             x_vars = [getColVal(row, col) for col in features]
-            prev = prev_dict.get(cust_id, [0]*N)
-            x_vars += prev
             for dt in lagdates:
-                tar_lag = lag_dict[dt].get(cust_id, [0]*N)
+                tar_lag = lag_dict[dt].get(cust_id, [0]*N + [-1]*M)
                 x_vars += tar_lag
             X.append(x_vars)
             ids.append(cust_id)
     return np.array(X), ids
+
+
+def SaveBuffer(X_train, y_train, X_test):
+    np.save('../data/input/train_lag.npy', X)
+    np.save('../data/input/train_y.npy', y)
+    np.save('../data/input/test_lag.npy', X_test)
+
+
+def readBuffer():
+    print 'Reading train file'
+    print '-'*30
+    X = np.load('../data/input/train_lag.npy')
+    y = np.load('../data/input/train_y.npy')
+    print 'Reading test file'
+    print '-'*30
+    X_test = np.load('../data/input/test_lag.npy')
+    with open('../data/input/test.csv', 'r') as testfile:
+        ids = []
+        for row in csv.DictReader(testfile):
+            cust_id = row['ncodpers']
+            ids.append(cust_id)
+    return X, y, X_test, ids
 
 
 def runXGB(X_train, y_train, params, num_rounds):
@@ -269,21 +289,20 @@ if __name__ == '__main__':
     print '*'*30
     target_cols = target_cols[2:]
     N = len(target_cols)
-    print 'Reading train file'
-    print '-'*30
-    X, y, test_prev, test_lag = creatTrainData(inputpath+trainfile)
-    print 'Reading test file'
-    print '-'*30
-    X_test, test_ids = creatTestData(inputpath+testfile, test_prev, test_lag)
+    M = len(features)
+    # X, y, test_lag = creatTrainData(inputpath+trainfile)
+    # X_test, test_ids = creatTestData(inputpath+testfile, test_lag)
+    # SaveBuffer(X, y, X_test)
+    X, y, X_test, test_ids = readBuffer()
     params = {'objective': 'multi:softprob',
               'num_class': N,
-              'colsample_bytree': 0.85,
-              'gamma': 0,
-              'max_depth': 6,
-              'min_child_weight': 10,
-              'subsample': 0.8,
-              'seed': 0,
-              'eta': 0.06,
+              'colsample_bytree': 0.810195135669,
+              'gamma': 1.6446531418,
+              'max_depth': 4,
+              'min_child_weight': 2,
+              'subsample': 1.0,
+              'seed': 123,
+              'eta': 0.205950347095,
               'silent': 1,
               'eval_metric': "mlogloss",
               }

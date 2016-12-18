@@ -122,7 +122,7 @@ def creatTrainData(filename,
                    testdate=(2016, 6, 28)
                    ):
     lagdates = []
-    for day in range(2, lag+1):
+    for day in range(1, lag+1):
         lagdates.append(strDate(getDate(traindate, -day)))
     prevdate = strDate(getDate(traindate, -1))
     traindate = strDate(traindate)
@@ -143,8 +143,10 @@ def creatTrainData(filename,
                 if dt not in lag_dict:
                     lag_dict[dt] = {}
                 lag_dict[dt][cust_id] = target
-            elif dt == prevdate:
-                prev_dict[cust_id] = target
+                lag_dict[dt][cust_id] += [getColVal(row, col)
+                                          for col in features]
+                if dt == prevdate:
+                    prev_dict[cust_id] = target
             elif dt == traindate:
                 prev = prev_dict.get(cust_id, [0]*N)
                 new_products = [max(x1-x2, 0) for (x1, x2)
@@ -153,9 +155,9 @@ def creatTrainData(filename,
                     for ind, prod in enumerate(new_products):
                         if prod > 0:
                             x_vars = [getColVal(row, col) for col in features]
-                            x_vars += prev
                             for dt in lagdates:
-                                tar_lag = lag_dict[dt].get(cust_id, [0]*N)
+                                tar_lag = lag_dict[dt].get(cust_id,
+                                                           [0]*N+[-1]*M)
                                 x_vars += tar_lag
                             X.append(x_vars)
                             y.append(ind)
@@ -212,6 +214,7 @@ if __name__ == '__main__':
     print '*'*30
     target_cols = target_cols[2:]
     N = len(target_cols)
+    M = len(features)
     print 'Reading train file'
     print '-'*30
     X, y = creatTrainData(inputpath+trainfile)
