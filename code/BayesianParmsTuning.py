@@ -216,8 +216,8 @@ if __name__ == '__main__':
                                                 'max_depth': (3, 10),
                                                 'subsample': (0.5, 1),
                                                 'gamma': (0, 5),
-                                                'eta': (0, 0.5),
-                                                'num_rounds': (100, 500)
+                                                'eta': (0, 0.3),
+                                                'num_rounds': (100, 1000)
                                                 })
     xgbBO.maximize(init_points=init_points, n_iter=num_iter)
     write_log(xgbBO)
