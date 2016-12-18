@@ -116,20 +116,6 @@ def getColVal(row, col):
         return int(row[col])
 
 
-def getMarriageIndex(row, age, sex, income):
-    marriage_age = 28
-    modifier = 0
-    if sex == 'V':
-        modifier += -2
-    if income <= 101850:
-        modifier += -1
-    marriage_age_mod = marriage_age + modifier
-    if age <= marriage_age_mod:
-        return 0
-    else:
-        return 1
-
-
 def creatTrainData(filename,
                    lag=5,
                    traindate=(2015, 6, 28),
@@ -291,13 +277,13 @@ if __name__ == '__main__':
     X_test, test_ids = creatTestData(inputpath+testfile, test_prev, test_lag)
     params = {'objective': 'multi:softprob',
               'num_class': N,
-              'colsample_bytree': 0.810195135669,
-              'gamma': 1.6446531418,
-              'max_depth': 4,
-              'min_child_weight': 2,
-              'subsample': 1.0,
-              'seed': 123,
-              'eta': 0.205950347095,
+              'colsample_bytree': 0.85,
+              'gamma': 0,
+              'max_depth': 6,
+              'min_child_weight': 10,
+              'subsample': 0.8,
+              'seed': 0,
+              'eta': 0.06,
               'silent': 1,
               'eval_metric': "mlogloss",
               }

@@ -183,8 +183,7 @@ def xgb_evaluate(min_child_weight,
               'seed': random_state
               }
     cv_result = xgb.cv(params, Xtrain, num_boost_round=int(num_rounds),
-                       nfold=5, seed=random_state,
-                       early_stopping_rounds=25
+                       nfold=5, seed=random_state
                        )
     return -cv_result['test-mlogloss-mean'].values[-1]
 
@@ -233,7 +232,7 @@ if __name__ == '__main__':
                                                 'subsample': (0.5, 1),
                                                 'gamma': (0, 5),
                                                 'eta': (0, 0.3),
-                                                'num_rounds': (100, 1000)
+                                                'num_rounds': (50, 1000)
                                                 })
     xgbBO.maximize(init_points=init_points, n_iter=num_iter)
     write_log(xgbBO)
