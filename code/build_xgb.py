@@ -10,6 +10,11 @@ features = ['ind_empleado', 'pais_residencia', 'sexo', 'age', 'fecha_alta',
             'canal_entrada', 'indfall', 'tipodom', 'cod_prov',
             'ind_actividad_cliente', 'renta', 'segmento']
 
+lag_fea = ['ind_empleado', 'age', 'ind_nuevo', 'antiguedad', 'indrel',
+           'ult_fec_cli_1t', 'indrel_1mes', 'tiprel_1mes', 'indresi', 
+           'conyuemp', 'canal_entrada', 'indfall', 'tipodom',
+           'ind_actividad_cliente', 'renta', 'segmento']
+
 target_cols = ['ind_ahor_fin_ult1', 'ind_aval_fin_ult1', 'ind_cco_fin_ult1',
                'ind_cder_fin_ult1', 'ind_cno_fin_ult1', 'ind_ctju_fin_ult1',
                'ind_ctma_fin_ult1', 'ind_ctop_fin_ult1', 'ind_ctpp_fin_ult1',
@@ -124,7 +129,7 @@ def creatTrainData(filename,
     print 'Reading train file'
     print '-'*30
     lagdates, testlagdates = [], []
-    for day in range(1, lag+1):
+    for day in range(4, lag+1):
         lagdates.append(strDate(getDate(traindate, -day)))
         testlagdates.append(strDate(getDate(testdate, -day)))
     prevdate = strDate(getDate(traindate, -1))
@@ -143,17 +148,17 @@ def creatTrainData(filename,
             if dt not in dates:
                 continue
             target = [getColVal(row, col) for col in target_cols]
-            x_vars = [getColVal(row, col) for col in features]
+            lag_vars = [getColVal(row, col) for col in lag_fea]
             if dt in lagdates:
                 if dt not in lag_dict:
                     lag_dict[dt] = {}
-                lag_dict[dt][cust_id] = target + x_vars
+                lag_dict[dt][cust_id] = target + lag_vars
                 if dt == prevdate:
                     prev_dict[cust_id] = target
             if dt in testlagdates:
                 if dt not in test_lag:
                     test_lag[dt] = {}
-                test_lag[dt][cust_id] = target + x_vars
+                test_lag[dt][cust_id] = target + lag_vars
             if dt == traindate:
                 prev = prev_dict.get(cust_id, [0]*N)
                 new_products = [max(x1-x2, 0) for (x1, x2)
@@ -176,7 +181,7 @@ def creatTestData(filename, lag_dict,
     print 'Reading test file'
     print '-'*30
     lagdates = []
-    for day in range(1, lag+1):
+    for day in range(4, lag+1):
         lagdates.append(strDate(getDate(testdate, -day)))
     with open(filename, 'r') as testfile:
         X = []
@@ -289,11 +294,12 @@ if __name__ == '__main__':
     print '*'*30
     target_cols = target_cols[2:]
     N = len(target_cols)
-    M = len(features)
-    # X, y, test_lag = creatTrainData(inputpath+trainfile)
-    # X_test, test_ids = creatTestData(inputpath+testfile, test_lag)
-    # SaveBuffer(X, y, X_test)
-    X, y, X_test, test_ids = readBuffer()
+    M = len(lag_fea)
+    X, y, test_lag = creatTrainData(inputpath+trainfile)
+    X_test, test_ids = creatTestData(inputpath+testfile, test_lag)
+    SaveBuffer(X, y, X_test)
+    # X, y, X_test, test_ids = readBuffer()
+    print X.shape, y.shape
     params = {'objective': 'multi:softprob',
               'num_class': N,
               'colsample_bytree': 0.810195135669,

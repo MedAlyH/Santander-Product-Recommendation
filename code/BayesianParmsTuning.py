@@ -10,6 +10,11 @@ features = ['ind_empleado', 'pais_residencia', 'sexo', 'age', 'fecha_alta',
             'canal_entrada', 'indfall', 'tipodom', 'cod_prov',
             'ind_actividad_cliente', 'renta', 'segmento']
 
+lag_fea = ['ind_empleado', 'age', 'ind_nuevo', 'antiguedad', 'indrel',
+           'ult_fec_cli_1t', 'indrel_1mes', 'tiprel_1mes', 'indresi',
+           'conyuemp', 'canal_entrada', 'indfall', 'tipodom',
+           'ind_actividad_cliente', 'renta', 'segmento']
+
 target_cols = ['ind_ahor_fin_ult1', 'ind_aval_fin_ult1', 'ind_cco_fin_ult1',
                'ind_cder_fin_ult1', 'ind_cno_fin_ult1', 'ind_ctju_fin_ult1',
                'ind_ctma_fin_ult1', 'ind_ctop_fin_ult1', 'ind_ctpp_fin_ult1',
@@ -144,7 +149,7 @@ def creatTrainData(filename,
                     lag_dict[dt] = {}
                 lag_dict[dt][cust_id] = target
                 lag_dict[dt][cust_id] += [getColVal(row, col)
-                                          for col in features]
+                                          for col in lag_fea]
                 if dt == prevdate:
                     prev_dict[cust_id] = target
             elif dt == traindate:
@@ -214,7 +219,7 @@ if __name__ == '__main__':
     print '*'*30
     target_cols = target_cols[2:]
     N = len(target_cols)
-    M = len(features)
+    M = len(lag_fea)
     print 'Reading train file'
     print '-'*30
     X, y = creatTrainData(inputpath+trainfile)
@@ -229,13 +234,13 @@ if __name__ == '__main__':
     #                                             'subsample': (0.5, 1),
     #                                             'gamma': (0, 10)
     #                                             })
-    xgbBO = BayesianOptimization(xgb_evaluate, {'min_child_weight': (1, 10),
+    xgbBO = BayesianOptimization(xgb_evaluate, {'min_child_weight': (1, 20),
                                                 'colsample_bytree': (0.5, 1),
                                                 'max_depth': (3, 10),
                                                 'subsample': (0.5, 1),
                                                 'gamma': (0, 5),
                                                 'eta': (0, 0.3),
-                                                'num_rounds': (50, 1000)
+                                                'num_rounds': (50, 500)
                                                 })
     xgbBO.maximize(init_points=init_points, n_iter=num_iter)
     write_log(xgbBO)
