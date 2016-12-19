@@ -129,7 +129,7 @@ def creatTrainData(filename,
     print 'Reading train file'
     print '-'*30
     lagdates, testlagdates = [], []
-    for day in range(4, lag+1):
+    for day in range(1, lag+1):
         lagdates.append(strDate(getDate(traindate, -day)))
         testlagdates.append(strDate(getDate(testdate, -day)))
     prevdate = strDate(getDate(traindate, -1))
@@ -153,8 +153,8 @@ def creatTrainData(filename,
                 if dt not in lag_dict:
                     lag_dict[dt] = {}
                 lag_dict[dt][cust_id] = target + lag_vars
-                if dt == prevdate:
-                    prev_dict[cust_id] = target
+            if dt == prevdate:
+                prev_dict[cust_id] = target
             if dt in testlagdates:
                 if dt not in test_lag:
                     test_lag[dt] = {}
@@ -181,7 +181,7 @@ def creatTestData(filename, lag_dict,
     print 'Reading test file'
     print '-'*30
     lagdates = []
-    for day in range(4, lag+1):
+    for day in range(1, lag+1):
         lagdates.append(strDate(getDate(testdate, -day)))
     with open(filename, 'r') as testfile:
         X = []
@@ -198,6 +198,8 @@ def creatTestData(filename, lag_dict,
 
 
 def SaveBuffer(X_train, y_train, X_test):
+    print 'Saving numpy array'
+    print '-'*30
     np.save('../data/input/train_lag.npy', X)
     np.save('../data/input/train_y.npy', y)
     np.save('../data/input/test_lag.npy', X_test)
