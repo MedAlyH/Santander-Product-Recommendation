@@ -11,7 +11,7 @@ features = ['ind_empleado', 'pais_residencia', 'sexo', 'age', 'fecha_alta',
             'ind_actividad_cliente', 'renta', 'segmento']
 
 lag_fea = ['ind_empleado', 'age', 'ind_nuevo', 'antiguedad', 'indrel',
-           'ult_fec_cli_1t', 'indrel_1mes', 'tiprel_1mes', 'indresi', 
+           'ult_fec_cli_1t', 'indrel_1mes', 'tiprel_1mes', 'indresi',
            'conyuemp', 'canal_entrada', 'indfall', 'tipodom',
            'ind_actividad_cliente', 'renta', 'segmento']
 

@@ -222,7 +222,9 @@ if __name__ == '__main__':
     M = len(lag_fea)
     print 'Reading train file'
     print '-'*30
-    X, y = creatTrainData(inputpath+trainfile)
+    # X, y = creatTrainData(inputpath+trainfile)
+    X = np.load('../data/input/train_lag.npy')
+    y = np.load('../data/input/train_y.npy')
     Xtrain = xgb.DMatrix(X, label=y)
     num_iter = 60
     init_points = 5
