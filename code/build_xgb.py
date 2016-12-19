@@ -10,10 +10,8 @@ features = ['ind_empleado', 'pais_residencia', 'sexo', 'age', 'fecha_alta',
             'canal_entrada', 'indfall', 'tipodom', 'cod_prov',
             'ind_actividad_cliente', 'renta', 'segmento']
 
-lag_fea = ['ind_empleado', 'age', 'ind_nuevo', 'antiguedad', 'indrel',
-           'ult_fec_cli_1t', 'indrel_1mes', 'tiprel_1mes', 'indresi',
-           'conyuemp', 'canal_entrada', 'indfall', 'tipodom',
-           'ind_actividad_cliente', 'renta', 'segmento']
+lag_fea = ['age', 'ind_nuevo', 'antiguedad', 'indrel', 'indrel_1mes',
+           'tiprel_1mes', 'ind_actividad_cliente', 'segmento']
 
 target_cols = ['ind_ahor_fin_ult1', 'ind_aval_fin_ult1', 'ind_cco_fin_ult1',
                'ind_cder_fin_ult1', 'ind_cno_fin_ult1', 'ind_ctju_fin_ult1',
@@ -152,13 +150,15 @@ def creatTrainData(filename,
             if dt in lagdates:
                 if dt not in lag_dict:
                     lag_dict[dt] = {}
-                lag_dict[dt][cust_id] = target + lag_vars
+                lag_dict[dt][cust_id] = target
+                lag_dict[dt][cust_id] += lag_vars
             if dt == prevdate:
                 prev_dict[cust_id] = target
             if dt in testlagdates:
                 if dt not in test_lag:
                     test_lag[dt] = {}
-                test_lag[dt][cust_id] = target + lag_vars
+                test_lag[dt][cust_id] = target
+                test_lag[dt][cust_id] += lag_vars
             if dt == traindate:
                 prev = prev_dict.get(cust_id, [0]*N)
                 new_products = [max(x1-x2, 0) for (x1, x2)
@@ -170,6 +170,7 @@ def creatTrainData(filename,
                             for dt in lagdates:
                                 tar_lag = (lag_dict[dt]
                                            .get(cust_id, [0]*N + [-1]*M))
+                                # tar_lag = lag_dict[dt].get(cust_id, [0]*N)
                                 x_vars += tar_lag
                             X.append(x_vars)
                             y.append(ind)
@@ -191,6 +192,7 @@ def creatTestData(filename, lag_dict,
             x_vars = [getColVal(row, col) for col in features]
             for dt in lagdates:
                 tar_lag = lag_dict[dt].get(cust_id, [0]*N + [-1]*M)
+                # tar_lag = lag_dict[dt].get(cust_id, [0]*N)
                 x_vars += tar_lag
             X.append(x_vars)
             ids.append(cust_id)
