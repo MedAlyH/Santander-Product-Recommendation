@@ -5,7 +5,7 @@ import xgboost as xgb
 from sklearn.model_selection import KFold
 from sklearn.metrics import log_loss
 from sklearn.neighbors import KNeighborsClassifier
-# from sklearn.naive_bayes import BernoulliNB
+from modelparams import get_paramslist
 
 features = ['ind_empleado', 'pais_residencia', 'sexo', 'age', 'fecha_alta',
             'ind_nuevo', 'antiguedad', 'indrel', 'ult_fec_cli_1t',
@@ -46,43 +46,22 @@ def strDate(date):
 
 
 def getAge(row):
-    mean_age = 40.
-    min_age = 20.
-    max_age = 90.
-    range_age = max_age - min_age
+    mean_age = 40
     age = int(row['age'])
     if age == -1:
         age = mean_age
-    else:
-        age = float(age)
-        if age < min_age:
-            age = min_age
-        elif age > max_age:
-            age = max_age
-    return round((age - min_age) / range_age, 4)
+    return age
 
 
 def getCustSeniority(row):
-    min_value = 0.
-    max_value = 256.
-    range_value = max_value - min_value
-    missing_value = 0.
     cust_seniority = float(row['antiguedad'])
-    if cust_seniority == -1:
-        cust_seniority = missing_value
-    else:
-        if cust_seniority < min_value:
-            cust_seniority = min_value
-        elif cust_seniority > max_value:
-            cust_seniority = max_value
-    return round((cust_seniority-min_value) / range_value, 4)
+    if cust_seniority == -1 or cust_seniority == -999999:
+        cust_seniority = 0
+    return cust_seniority
 
 
 def getRent(row):
-    min_value = 0.
-    max_value = 1500000.
-    range_value = max_value - min_value
-    renta_dict = {'-1': 101850, '1': 111098, '2':  83064, '3':  87357,
+    renta_dict = {'-1': 134254, '1': 111098, '2':  83064, '3':  87357,
                   '4':  85400, '5':  76853, '6':  72179, '7': 171996,
                   '8': 164679, '9':  97881, '10':  75365, '11':  98639,
                   '12':  79182, '13':  69888, '14':  85610, '15': 112801,
@@ -99,16 +78,8 @@ def getRent(row):
                   }
     rent = float(row['renta'])
     if rent == -1:
-        if row['cod_prov'] == '-1':
-            rent = float(renta_dict[row['cod_prov']])
-        else:
-            rent = float(renta_dict[row['cod_prov']])
-    else:
-        if rent < min_value:
-            rent = min_value
-        elif rent > max_value:
-            rent = max_value
-    return round((rent-min_value) / range_value, 6)
+        rent = float(renta_dict[row['cod_prov']])
+    return np.log(rent)
 
 
 def getColVal(row, col):
@@ -309,6 +280,29 @@ def add_knn_feature(X_train, y_train, X_test):
     return X_train, X_test
 
 
+def model_ensemble(X_train, y_train, X_test):
+    params_list, num_rounds_list = get_paramslist(N)
+    num = X_test.shape[0]
+    y_preds = np.zeros((num, N))
+    nfolds = len(params_list)
+    for params, num_rounds in zip(params_list, num_rounds_list):
+        print '-'*30
+        print params
+        model = runXGB(X_train, y_train, params, num_rounds)
+        y_pred = predictProduct(model, X_test)
+        y_preds += y_pred
+    y_preds /= nfolds
+    outputpath = '../data/output/'
+    output = ('sub_xgb_ensembles_5all_{}.csv'
+              .format(nfolds,
+                      datetime.now().strftime("%Y-%m-%d-%H-%M")
+                      )
+              )
+    filename = outputpath + output
+    makeSubmition(filename, y_preds)
+    return y_preds
+
+
 if __name__ == '__main__':
     inputpath = '../data/input/'
     trainfile = 'train.csv'
@@ -325,18 +319,19 @@ if __name__ == '__main__':
     print X.shape, y.shape, X_test.shape
     params = {'objective': 'multi:softprob',
               'num_class': N,
-              'colsample_bytree': 0.7,
-              'gamma': 4.95,
-              'max_depth': 8,
-              'min_child_weight': 7,
-              'subsample': 0.73,
+              'colsample_bytree': 0.787,
+              'gamma': 3.9788,
+              'max_depth': 5,
+              'min_child_weight': 6,
+              'subsample': 0.9,
               'seed': 123,
-              'eta': 0.05,
+              'eta': 0.0185,
               'silent': 1,
               'eval_metric': "mlogloss",
               }
-    num_rounds = 370
+    num_rounds = 379
     model, y_pred = one_run(X, y, X_test, params, num_rounds)
     # nfolds = 5
     # models, y_preds = cv_run(X, y, X_test, nfolds, params, num_rounds)
+    y_preds = model_ensemble(X, y, X_test)
     print 'Done!'
