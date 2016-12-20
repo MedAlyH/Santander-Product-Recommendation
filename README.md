@@ -7,7 +7,7 @@ My personal solution for kaggle challenge [Santander Product Recommendation](htt
 4. fecha_alta is the date of establish the account, which convert to month or the days to the fecha_dato.  
 ### Data impurity
 1. age consits with two normal distribution, one group mean is young adults, and the other is for mid-age adults. The missing value is filled with the average 40.  
-![distribution of age](img\age.png)
+![distribution of age](img/age.png)
 2. renta is the income of the costumer. Since the average income varies from different area, the missing value is filled the mean of each area code. The area with missing area code, filled with the total average. The log of the renta is followed the normal distribution, so transfer this column to log(renta).  
-![distribution of renta](img\renta.png)
-3. antiguedad is customer seniority. Missing value is filled with average 76.
+![distribution of renta](img/renta.png)
+3. antiguedad is customer seniority. Missing value is filled with 0.
