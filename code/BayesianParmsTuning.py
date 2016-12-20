@@ -57,7 +57,7 @@ if __name__ == '__main__':
     X = np.load('../data/input/train_lag.npy')
     y = np.load('../data/input/train_y.npy')
     Xtrain = xgb.DMatrix(X, label=y)
-    num_iter = 50
+    num_iter = 30
     init_points = 5
     print 'Optimizing...'
     print '-'*30

@@ -3,6 +3,9 @@ from datetime import datetime
 import csv
 import xgboost as xgb
 from sklearn.model_selection import KFold
+from sklearn.metrics import log_loss
+from sklearn.neighbors import KNeighborsClassifier
+# from sklearn.naive_bayes import BernoulliNB
 
 features = ['ind_empleado', 'pais_residencia', 'sexo', 'age', 'fecha_alta',
             'ind_nuevo', 'antiguedad', 'indrel', 'ult_fec_cli_1t',
@@ -228,6 +231,7 @@ def runXGB(X_train, y_train, params, num_rounds):
     print '-'*30
     xgtrain = xgb.DMatrix(X_train, label=y_train)
     model = xgb.train(params, xgtrain, num_rounds)
+    print log_loss(y_train, model.predict(xgtrain))
     return model
 
 
@@ -291,6 +295,20 @@ def cv_run(X_train, y_train, X_test, nfolds, params, num_rounds):
     return models, y_preds
 
 
+def add_knn_feature(X_train, y_train, X_test):
+    print 'Getting knn features'
+    print '-'*30
+    knn = KNeighborsClassifier(n_jobs=-1)
+    knn.fit(X_train, y)
+    print 'for train'
+    knn_train = knn.predict_proba(X_train)
+    print 'for test'
+    knn_test = knn.predict_proba(X_test)
+    X_train = np.hstack((X_train, knn_train))
+    X_test = np.hstack((X_test, knn_test))
+    return X_train, X_test
+
+
 if __name__ == '__main__':
     inputpath = '../data/input/'
     trainfile = 'train.csv'
@@ -301,22 +319,23 @@ if __name__ == '__main__':
     M = len(lag_fea)
     X, y, test_lag = creatTrainData(inputpath+trainfile)
     X_test, test_ids = creatTestData(inputpath+testfile, test_lag)
+    # X, X_test = add_knn_feature(X, y, X_test)
     SaveBuffer(X, y, X_test)
     # X, y, X_test, test_ids = readBuffer()
-    print X.shape, y.shape
+    print X.shape, y.shape, X_test.shape
     params = {'objective': 'multi:softprob',
               'num_class': N,
-              'colsample_bytree': 0.810195135669,
-              'gamma': 1.6446531418,
-              'max_depth': 4,
-              'min_child_weight': 2,
-              'subsample': 1.0,
+              'colsample_bytree': 0.7,
+              'gamma': 4.95,
+              'max_depth': 8,
+              'min_child_weight': 7,
+              'subsample': 0.73,
               'seed': 123,
-              'eta': 0.205950347095,
+              'eta': 0.05,
               'silent': 1,
               'eval_metric': "mlogloss",
               }
-    num_rounds = 373
+    num_rounds = 370
     model, y_pred = one_run(X, y, X_test, params, num_rounds)
     # nfolds = 5
     # models, y_preds = cv_run(X, y, X_test, nfolds, params, num_rounds)

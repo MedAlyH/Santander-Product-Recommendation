@@ -65,3 +65,18 @@ params = {'objective': 'multi:softprob',
           'eval_metric': "mlogloss",
           }
 num_rounds = 50
+
+params = {'objective': 'multi:softprob',
+          'num_class': N,
+          'colsample_bytree': 0.7,
+          'gamma': 4.95,
+          'max_depth': 8,
+          'min_child_weight': 7,
+          'subsample': 0.73,
+          'seed': 123,
+          'eta': 0.05,
+          'silent': 1,
+          'eval_metric': "mlogloss",
+          }
+num_rounds = 370
+model, y_pred = one_run(X, y, X_test, params, num_rounds)
