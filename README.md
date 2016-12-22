@@ -13,3 +13,8 @@ My personal solution for kaggle challenge [Santander Product Recommendation](htt
 2. renta is the income of the costumer. Since the average income varies from different area, the missing value is filled the mean of each area code. The area with missing area code, filled with the total average. The log of the renta is followed the normal distribution, so transfer this column to log(renta).  
 ![distribution of renta](img/renta.png)
 3. antiguedad is customer seniority. Missing value is filled with 0.
+
+## Training
+
+In this competetion, the goal is to predict new product on Jun 2016 compare to May 2016. For each month, get the customer who purchase new product as the training sets. Since the product holding of previous month affect the new product purchase, it is important to include the lagging product as the features.  
+In the code, I use all 5 month lagging feature and customer feature training the data from June 2015 to May 2016. The model built on xgboost.
