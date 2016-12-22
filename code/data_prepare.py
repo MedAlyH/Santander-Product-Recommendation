@@ -152,7 +152,10 @@ def clean_data(filename):
 
     df['fecha_dato'] = pd.to_datetime(df['fecha_dato'])
     df['fecha_alta'] = pd.to_datetime(df['fecha_alta'])
-    df['fecha_alta'] = df['fecha_alta'].dt.month
+    df['est_month'] = df['fecha_alta'].dt.month
+    df['est_month'] = df['est_month'].fillna(-1)
+    df['est_month'] = df['est_month'].astype(int)
+    df['fecha_alta'] = (df['fecha_dato'] - df['fecha_alta']).dt.days
     df['fecha_alta'] = df['fecha_alta'].fillna(-1)
     df['fecha_alta'] = df['fecha_alta'].astype(int)
     return df

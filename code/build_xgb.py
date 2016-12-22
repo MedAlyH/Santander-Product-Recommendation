@@ -11,10 +11,10 @@ features = ['ind_empleado', 'pais_residencia', 'sexo', 'age', 'fecha_alta',
             'ind_nuevo', 'antiguedad', 'indrel', 'ult_fec_cli_1t',
             'indrel_1mes', 'tiprel_1mes', 'indresi', 'indext', 'conyuemp',
             'canal_entrada', 'indfall', 'tipodom', 'cod_prov',
-            'ind_actividad_cliente', 'renta', 'segmento']
+            'ind_actividad_cliente', 'renta', 'segmento', 'est_month']
 
 lag_fea = ['age', 'ind_nuevo', 'antiguedad', 'indrel', 'indrel_1mes',
-           'tiprel_1mes', 'ind_actividad_cliente', 'segmento']
+           'tiprel_1mes', 'ind_actividad_cliente', 'segmento', 'fecha_alta']
 
 target_cols = ['ind_ahor_fin_ult1', 'ind_aval_fin_ult1', 'ind_cco_fin_ult1',
                'ind_cder_fin_ult1', 'ind_cno_fin_ult1', 'ind_ctju_fin_ult1',
@@ -45,6 +45,12 @@ def strDate(date):
         return '{}-{}-{}'.format(year, month, day)
 
 
+def getMonthDiff(date1, date2):
+    yr1, m1, _ = date1
+    yr2, m2, _ = date2
+    return (yr2 - yr1) * 12 + (m2 - m1)
+
+
 def getAge(row):
     mean_age = 40
     age = int(row['age'])
@@ -54,9 +60,10 @@ def getAge(row):
 
 
 def getCustSeniority(row):
+    missing_value = 0.
     cust_seniority = float(row['antiguedad'])
     if cust_seniority == -1 or cust_seniority == -999999:
-        cust_seniority = 0
+        cust_seniority = missing_value
     return cust_seniority
 
 
@@ -93,62 +100,67 @@ def getColVal(row, col):
         return int(row[col])
 
 
-def creatTrainData(filename,
-                   lag=5,
-                   traindate=(2015, 6, 28),
-                   testdate=(2016, 6, 28)
-                   ):
+def read_train_file(filename):
     print 'Reading train file'
     print '-'*30
-    lagdates, testlagdates = [], []
-    for day in range(1, lag+1):
-        lagdates.append(strDate(getDate(traindate, -day)))
-        testlagdates.append(strDate(getDate(testdate, -day)))
-    prevdate = strDate(getDate(traindate, -1))
-    traindate = strDate(traindate)
-    testdate = strDate(testdate)
-    dates = lagdates + testlagdates + [traindate, testdate]
+    product_dict = {}
+    features_dict = {}
     with open(filename, 'r') as trainfile:
-        X = []
-        y = []
-        prev_dict = {}
-        lag_dict = {}
-        test_lag = {}
         for row in csv.DictReader(trainfile):
             dt = row['fecha_dato']
             cust_id = row['ncodpers']
-            if dt not in dates:
-                continue
+            if dt not in product_dict:
+                product_dict[dt] = {}
+            if dt not in features_dict:
+                features_dict[dt] = {}
             target = [getColVal(row, col) for col in target_cols]
-            lag_vars = [getColVal(row, col) for col in lag_fea]
-            if dt in lagdates:
-                if dt not in lag_dict:
-                    lag_dict[dt] = {}
-                lag_dict[dt][cust_id] = target
-                lag_dict[dt][cust_id] += lag_vars
-            if dt == prevdate:
-                prev_dict[cust_id] = target
-            if dt in testlagdates:
-                if dt not in test_lag:
-                    test_lag[dt] = {}
-                test_lag[dt][cust_id] = target
-                test_lag[dt][cust_id] += lag_vars
-            if dt == traindate:
-                prev = prev_dict.get(cust_id, [0]*N)
-                new_products = [max(x1-x2, 0) for (x1, x2)
-                                in zip(target, prev)]
-                if sum(new_products) > 0:
-                    for ind, prod in enumerate(new_products):
-                        if prod > 0:
-                            x_vars = [getColVal(row, col) for col in features]
-                            for dt in lagdates:
-                                tar_lag = (lag_dict[dt]
-                                           .get(cust_id, [0]*N + [-1]*M))
-                                # tar_lag = lag_dict[dt].get(cust_id, [0]*N)
-                                x_vars += tar_lag
-                            X.append(x_vars)
-                            y.append(ind)
-    return np.array(X), np.array(y), test_lag
+            fea = [getColVal(row, col) for col in features]
+            product_dict[dt][cust_id] = target
+            features_dict[dt][cust_id] = fea
+    return product_dict, features_dict
+
+
+def getMonthData(month, product_dict, features_dict, lag=5):
+    lagdates = [strDate(getDate(month, -d)) for d in range(1, lag+1)]
+    prevdate = strDate(getDate(month, -1))
+    month = strDate(month)
+    X, y = [], []
+    empty_tar = [0 for i in range(N)]
+    for cust_id in product_dict[month]:
+        prev = product_dict[prevdate].get(cust_id, empty_tar)
+        target = product_dict[month][cust_id]
+        new_products = [max(x1-x2, 0) for (x1, x2) in zip(target, prev)]
+        if sum(new_products) > 0:
+            for ind, prod in enumerate(new_products):
+                if prod > 0:
+                    x_vars = features_dict[month][cust_id]
+                    tars = []
+                    for dt in lagdates:
+                        tar_lag = product_dict[dt].get(cust_id, empty_tar)
+                        tars += tar_lag
+                    X.append(x_vars + tars)
+                    y.append(ind)
+    return X, y
+
+
+def creatTrainData(filename, lag=5,
+                   traindate=(2016, 5, 28),
+                   startdate=(2015, 6, 28),
+                   testdate=(2016, 6, 28),
+                   savefile=True):
+    prodDict, feaDict = read_train_file(filename)
+    month_diff = getMonthDiff(startdate, traindate)
+    train_monthes = [getDate(traindate, -i) for i in range(month_diff+1)]
+    X, y = [], []
+    for month in train_monthes:
+        print 'Adding', strDate(month)
+        X_month, y_month = getMonthData(month, prodDict,
+                                        feaDict, lag=lag)
+        X += X_month
+        y += y_month
+    print '-'*30
+    del feaDict
+    return np.array(X), np.array(y), prodDict
 
 
 def creatTestData(filename, lag_dict,
@@ -156,6 +168,7 @@ def creatTestData(filename, lag_dict,
     print 'Reading test file'
     print '-'*30
     lagdates = []
+    empty_tar = [0 for i in range(N)]
     for day in range(1, lag+1):
         lagdates.append(strDate(getDate(testdate, -day)))
     with open(filename, 'r') as testfile:
@@ -165,8 +178,7 @@ def creatTestData(filename, lag_dict,
             cust_id = row['ncodpers']
             x_vars = [getColVal(row, col) for col in features]
             for dt in lagdates:
-                tar_lag = lag_dict[dt].get(cust_id, [0]*N + [-1]*M)
-                # tar_lag = lag_dict[dt].get(cust_id, [0]*N)
+                tar_lag = lag_dict[dt].get(cust_id, empty_tar)
                 x_vars += tar_lag
             X.append(x_vars)
             ids.append(cust_id)
@@ -293,7 +305,7 @@ def model_ensemble(X_train, y_train, X_test):
         y_preds += y_pred
     y_preds /= nfolds
     outputpath = '../data/output/'
-    output = ('sub_xgb_ensembles_5all_{}.csv'
+    output = ('sub_xgb_{}ensembles_5all_{}.csv'
               .format(nfolds,
                       datetime.now().strftime("%Y-%m-%d-%H-%M")
                       )
@@ -311,25 +323,26 @@ if __name__ == '__main__':
     target_cols = target_cols[2:]
     N = len(target_cols)
     M = len(lag_fea)
-    X, y, test_lag = creatTrainData(inputpath+trainfile)
-    X_test, test_ids = creatTestData(inputpath+testfile, test_lag)
+    X, y, product_dict = creatTrainData(inputpath+trainfile)
+    X_test, test_ids = creatTestData(inputpath+testfile, product_dict)
+    del product_dict
     # X, X_test = add_knn_feature(X, y, X_test)
     SaveBuffer(X, y, X_test)
     # X, y, X_test, test_ids = readBuffer()
     print X.shape, y.shape, X_test.shape
     params = {'objective': 'multi:softprob',
               'num_class': N,
-              'colsample_bytree': 0.787,
-              'gamma': 3.9788,
-              'max_depth': 5,
-              'min_child_weight': 6,
-              'subsample': 0.9,
+              'colsample_bytree': 0.810195135669,
+              'gamma': 1.6446531418,
+              'max_depth': 4,
+              'min_child_weight': 2,
+              'subsample': 1.0,
               'seed': 123,
-              'eta': 0.0185,
+              'eta': 0.205950347095,
               'silent': 1,
               'eval_metric': "mlogloss",
               }
-    num_rounds = 379
+    num_rounds = 373
     model, y_pred = one_run(X, y, X_test, params, num_rounds)
     # nfolds = 5
     # models, y_preds = cv_run(X, y, X_test, nfolds, params, num_rounds)

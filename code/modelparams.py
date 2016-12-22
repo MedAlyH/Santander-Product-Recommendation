@@ -48,18 +48,6 @@ def get_paramslist(N):
                   },
                  {'objective': 'multi:softprob',
                   'num_class': N,
-                  'colsample_bytree': 0.85,
-                  'gamma': 0,
-                  'max_depth': 6,
-                  'min_child_weight': 10,
-                  'subsample': 0.8,
-                  'seed': 0,
-                  'eta': 0.06,
-                  'silent': 1,
-                  'eval_metric': "mlogloss",
-                  },
-                 {'objective': 'multi:softprob',
-                  'num_class': N,
                   'colsample_bytree': 0.7,
                   'gamma': 4.95,
                   'max_depth': 8,
@@ -83,5 +71,5 @@ def get_paramslist(N):
                   'eval_metric': "mlogloss",
                   }
                  ]
-    num_rounds_list = [115, 190, 200, 373, 50, 370, 379]
+    num_rounds_list = [115, 190, 200, 373, 370, 379]
     return parmslist, num_rounds_list
