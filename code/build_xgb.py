@@ -6,6 +6,7 @@ from sklearn.model_selection import KFold
 from sklearn.metrics import log_loss
 from sklearn.neighbors import KNeighborsClassifier
 from modelparams import get_paramslist
+import json
 
 features = ['ind_empleado', 'pais_residencia', 'sexo', 'age', 'fecha_alta',
             'ind_nuevo', 'antiguedad', 'indrel', 'ult_fec_cli_1t',
@@ -101,8 +102,6 @@ def getColVal(row, col):
 
 
 def read_train_file(filename):
-    print 'Reading train file'
-    print '-'*30
     product_dict = {}
     features_dict = {}
     with open(filename, 'r') as trainfile:
@@ -146,9 +145,16 @@ def getMonthData(month, product_dict, features_dict, lag=5):
 def creatTrainData(filename, lag=5,
                    traindate=(2016, 5, 28),
                    startdate=(2015, 6, 28),
-                   testdate=(2016, 6, 28),
-                   savefile=True):
-    prodDict, feaDict = read_train_file(filename)
+                   savefile=True, loadfile=False):
+    print 'Reading train file'
+    print '-'*30
+    if loadfile:
+        with open('../data/input/feaDict.json') as outfile:
+            feaDict = json.load(outfile)
+        with open('../data/input/prodDict.json') as outfile:
+            prodDict = json.load(outfile)
+    else:
+        prodDict, feaDict = read_train_file(filename)
     month_diff = getMonthDiff(startdate, traindate)
     train_monthes = [getDate(traindate, -i) for i in range(month_diff+1)]
     X, y = [], []
@@ -159,6 +165,13 @@ def creatTrainData(filename, lag=5,
         X += X_month
         y += y_month
     print '-'*30
+    if savefile:
+        print 'dumping json'
+        print '-'*30
+        with open('../data/input/feaDict.json', 'w') as outfile:
+            json.dump(feaDict, outfile)
+        with open('../data/input/prodDict.json', 'w') as outfile:
+            json.dump(prodDict, outfile)
     del feaDict
     return np.array(X), np.array(y), prodDict
 
@@ -323,7 +336,8 @@ if __name__ == '__main__':
     target_cols = target_cols[2:]
     N = len(target_cols)
     M = len(lag_fea)
-    X, y, product_dict = creatTrainData(inputpath+trainfile)
+    X, y, product_dict = creatTrainData(inputpath+trainfile,
+                                        traindate=(2015, 12, 28))
     X_test, test_ids = creatTestData(inputpath+testfile, product_dict)
     del product_dict
     # X, X_test = add_knn_feature(X, y, X_test)
