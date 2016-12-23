@@ -336,13 +336,13 @@ if __name__ == '__main__':
     target_cols = target_cols[2:]
     N = len(target_cols)
     M = len(lag_fea)
-    X, y, product_dict = creatTrainData(inputpath+trainfile,
-                                        traindate=(2015, 12, 28))
-    X_test, test_ids = creatTestData(inputpath+testfile, product_dict)
-    del product_dict
+    # X, y, product_dict = creatTrainData(inputpath+trainfile,
+                                        # traindate=(2015, 12, 28))
+    # X_test, test_ids = creatTestData(inputpath+testfile, product_dict)
+    # del product_dict
     # X, X_test = add_knn_feature(X, y, X_test)
-    SaveBuffer(X, y, X_test)
-    # X, y, X_test, test_ids = readBuffer()
+    # SaveBuffer(X, y, X_test)
+    X, y, X_test, test_ids = readBuffer()
     print X.shape, y.shape, X_test.shape
     params = {'objective': 'multi:softprob',
               'num_class': N,
