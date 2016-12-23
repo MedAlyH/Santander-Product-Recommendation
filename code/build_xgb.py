@@ -150,9 +150,12 @@ def creatTrainData(filename, lag=5,
     print '-'*30
     if loadfile:
         with open('../data/input/feaDict.json') as outfile:
+            print 'features'
             feaDict = json.load(outfile)
         with open('../data/input/prodDict.json') as outfile:
+            print 'products'
             prodDict = json.load(outfile)
+        print '-'*30
     else:
         prodDict, feaDict = read_train_file(filename)
     month_diff = getMonthDiff(startdate, traindate)
@@ -169,9 +172,12 @@ def creatTrainData(filename, lag=5,
         print 'dumping json'
         print '-'*30
         with open('../data/input/feaDict.json', 'w') as outfile:
+            print 'features'
             json.dump(feaDict, outfile)
         with open('../data/input/prodDict.json', 'w') as outfile:
+            print 'products'
             json.dump(prodDict, outfile)
+        print '-'*30
     del feaDict
     return np.array(X), np.array(y), prodDict
 
