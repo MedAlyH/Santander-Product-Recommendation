@@ -25,9 +25,9 @@ def RandomizedParamsTuning(X_train, X_test, y_train, y_test, num_param=30):
     xgbEst = xgb.XGBClassifier(n_estimators=2000)
     eval_set = [(X_train, y_train), (X_test, y_test)]
     params = {'min_child_weight': stats.randint(1, 20),
-              'colsample_bytree': stats.uniform(0.5, 1),
+              'colsample_bytree': stats.uniform(0.5, 0.5),
               'max_depth': stats.randint(3, 21),
-              'subsample': stats.uniform(0.5, 1),
+              'subsample': stats.uniform(0.5, 0.5),
               'gamma': stats.uniform(0, 10)
               }
     xgParams = {'eval_set': eval_set,
@@ -36,11 +36,12 @@ def RandomizedParamsTuning(X_train, X_test, y_train, y_test, num_param=30):
                 'verbose': False
                 }
     rsModel = RandomizedSearchCV(estimator=xgbEst,
-                                 n_iter=num_param,
+                                 n_iter=num_param, cv=5,
                                  param_distributions=params,
-                                 fit_params=xgParams, verbose=1,
+                                 fit_params=xgParams, verbose=2,
                                  scoring=make_scorer(log_loss))
-    rsModel.fit()
+    rsModel.fit(X_train, y_train)
+    return rsModel
 
 
 def write_log(model):
@@ -63,5 +64,5 @@ def write_log(model):
 
 if __name__ == '__main__':
     X_train, X_test, y_train, y_test = loadData()
-    rsModel = RandomizedSearchCV(X_train, X_test, y_train, y_test, 30)
+    rsModel = RandomizedParamsTuning(X_train, X_test, y_train, y_test, 30)
     write_log(rsModel)
