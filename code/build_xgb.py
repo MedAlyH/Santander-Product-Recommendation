@@ -343,7 +343,7 @@ if __name__ == '__main__':
     N = len(target_cols)
     M = len(lag_fea)
     # X, y, product_dict = creatTrainData(inputpath+trainfile,
-                                        # traindate=(2015, 12, 28))
+    #                                     traindate=(2015, 12, 28))
     # X_test, test_ids = creatTestData(inputpath+testfile, product_dict)
     # del product_dict
     # X, X_test = add_knn_feature(X, y, X_test)

@@ -17,4 +17,5 @@ My personal solution for kaggle challenge [Santander Product Recommendation](htt
 ## Training
 
 In this competetion, the goal is to predict new product on Jun 2016 compare to May 2016. For each month, get the customer who purchase new product as the training sets. Since the product holding of previous month affect the new product purchase, it is important to include the lagging product as the features.  
-In the code, I use all 5 month lagging feature and customer feature training the data from June 2015 to May 2016. The model built on xgboost.
+In the code, I use all 5 month lagging feature and customer feature training the data from June 2015 to May 2016. The model built on xgboost.  
+Result PLB: 0.0302907
