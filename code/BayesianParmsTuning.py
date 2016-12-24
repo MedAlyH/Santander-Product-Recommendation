@@ -8,10 +8,9 @@ def xgb_evaluate(min_child_weight,
                  colsample_bytree,
                  max_depth,
                  subsample,
-                 gamma,
-                 eta,
-                 num_rounds):
+                 gamma):
     random_state = 123
+    num_rounds = 250
     params = {'min_child_weight': int(min_child_weight),
               'cosample_bytree': max(min(colsample_bytree, 1), 0),
               'max_depth': int(max_depth),
@@ -24,8 +23,9 @@ def xgb_evaluate(min_child_weight,
               'verbose_eval': True,
               'seed': random_state
               }
-    cv_result = xgb.cv(params, Xtrain, num_boost_round=int(num_rounds),
-                       nfold=5, seed=random_state
+    cv_result = xgb.cv(params, Xtrain, num_boost_round=num_rounds,
+                       nfold=5, seed=random_state,
+                       early_stopping_rounds = 25 
                        )
     return -cv_result['test-mlogloss-mean'].values[-1]
 
@@ -65,9 +65,7 @@ if __name__ == '__main__':
               'colsample_bytree': (0.5, 1),
               'max_depth': (3, 10),
               'subsample': (0.5, 1),
-              'gamma': (0, 5),
-              'eta': (0, 0.3),
-              'num_rounds': (50, 500)
+              'gamma': (0, 5)
               }
     # xgbBO = BayesianOptimization(xgb_evaluate, {'min_child_weight': (1, 20),
     #                                             'colsample_bytree': (0.5, 1),
